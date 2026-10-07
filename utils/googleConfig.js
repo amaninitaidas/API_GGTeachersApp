@@ -1,6 +1,3 @@
-// Google Sheet Configuration
-export const SPREADSHEET_ID = "12RLRK6PjQVeysGskGu6Zanpx6AFU7QwMbU__Ec8JjWI";
-
 // Google Authentication
 export async function getGoogleAccessToken(env) {
   const clientEmail = env.GOOGLE_CLIENT_EMAIL;

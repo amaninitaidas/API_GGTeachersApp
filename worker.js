@@ -1,10 +1,4 @@
-import { TEST_KEY } from "./utils/googleConfig.js";
-import {
-  GET_DATA,
-  SAVE_DATA,
-  DELETE_DATA,
-  SEARCH_VOUCHER,
-} from "./api/ApplicationMethod.js";
+import { GET_TODAY_CLASS_DETAILS_FOR_TEACHER } from "./api/ApplicationMethod.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -70,24 +64,8 @@ export default {
       // API routing
 
       switch (apiType) {
-        case "TEST_KEY":
-          response = await TEST_KEY(env);
-          break;
-
-        case "SEARCH_VOUCHER":
-          response = await SEARCH_VOUCHER(inputData, env);
-          break;
-
-        case "GET_DATA":
-          response = await GET_DATA(inputData, env);
-          break;
-
-        case "SAVE_DATA":
-          response = await SAVE_DATA(inputData, env);
-          break;
-
-        case "DELETE_DATA":
-          response = await DELETE_DATA(inputData, env);
+        case "GET_TODAY_CLASS_DETAILS_FOR_TEACHER":
+          response = await GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env);
           break;
 
         default:

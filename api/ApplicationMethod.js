@@ -1,4 +1,6 @@
-import { SPREADSHEET_ID, getGoogleAccessToken } from "../utils/googleConfig.js";
+import { getGoogleAccessToken } from "../utils/googleConfig.js";
+
+const url_base = "https://sheets.googleapis.com/v4/spreadsheets";
 
 // GET DATA
 
@@ -14,7 +16,7 @@ export async function GET_DATA(inputData, env) {
 
   const accessToken = await getGoogleAccessToken(env);
   const range = encodeURIComponent(`'${sheetName}'`);
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
+  const url = `${url_base}/${SPREADSHEET_ID}/values/${range}`;
 
   const response = await fetch(url, {
     method: "GET",
@@ -38,253 +40,143 @@ export async function GET_DATA(inputData, env) {
   };
 }
 
-// SAVE DATA
-
-export async function SAVE_DATA(inputData, env) {
-  const sheetName = inputData.sheetName;
-  const rowData = inputData.rowData;
-
-  if (!sheetName) {
-    return {
-      status: false,
-      message: "sheetName is required",
-    };
-  }
-
-  if (!Array.isArray(rowData)) {
-    return {
-      status: false,
-      message: "rowData must be an array",
-    };
-  }
-
-  const accessToken = await getGoogleAccessToken(env);
-  const range = encodeURIComponent(`'${sheetName}'`);
-
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      values: [rowData],
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.error("SAVE_DATA Google Error:", data);
-
-    throw new Error(
-      data.error?.message || "Unable to save data to Google Sheet",
-    );
-  }
-
-  return {
-    status: true,
-    message: "SAVE_DATA successful",
-    data: data,
-  };
-}
-
-// DELETE DATA
-
-export async function DELETE_DATA(inputData, env) {
-  const sheetName = inputData.sheetName;
-  const rowNumber = Number(inputData.rowNumber ?? inputData.rowIndex);
-
-  if (!sheetName) {
-    return {
-      status: false,
-      message: "sheetName is required",
-    };
-  }
-
-  // Row numbers are 1-based.
-
-  if (!Number.isInteger(rowNumber) || rowNumber < 1) {
-    return {
-      status: false,
-      message: "Valid rowNumber is required",
-    };
-  }
-
-  const accessToken = await getGoogleAccessToken(env);
-
-  const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`;
-
-  const metadataResponse = await fetch(metadataUrl, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  const metadata = await metadataResponse.json();
-
-  if (!metadataResponse.ok) {
-    console.error("Spreadsheet Metadata Error:", metadata);
-
-    throw new Error(
-      metadata.error?.message || "Unable to get spreadsheet metadata",
-    );
-  }
-
-  const sheet = metadata.sheets?.find((s) => s.properties?.title === sheetName);
-
-  if (!sheet) {
-    return {
-      status: false,
-      message: `Sheet '${sheetName}' not found`,
-    };
-  }
-
-  const sheetId = sheet.properties.sheetId;
-  const startIndex = rowNumber - 1;
-  const endIndex = rowNumber;
-
-  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`;
-
-  const response = await fetch(batchUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: sheetId,
-              dimension: "ROWS",
-              startIndex: startIndex,
-              endIndex: endIndex,
-            },
-          },
-        },
-      ],
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.error("DELETE_DATA Google Error:", data);
-
-    throw new Error(data.error?.message || "Unable to delete row");
-  }
-
-  return {
-    status: true,
-    message: "DELETE_DATA successful",
-    data: {
-      sheetName: sheetName,
-      deletedRowNumber: rowNumber,
-    },
-  };
-}
-
-// SEARCH VOUCHER
-
-export async function SEARCH_VOUCHER(inputData, env) {
-  const sheetName = inputData?.sheetName || "Sheet1";
-  const voucherId = String(inputData?.voucherId || "").trim();
-
-  if (!voucherId) {
-    return {
-      status: false,
-      message: "Voucher ID is required",
-    };
-  }
+export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData) {
+  let student_ignore_map = getStudentStreamMap();
+  let students_on_leave = getStudentLeaves();
 
   try {
-    // Get voucher IDs from the first column.
+    let teacherName = inputData?.toString().trim();
+    if (!teacherName) return "Teacher is required!";
 
-    const range = `${sheetName}!A:A`;
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
+    // File IDs
+    const teacherFileId = "1iK2guH70XkRw4Haf38g9qnq34b6DRTmi2rqDHU0T6F4";
+    const mappingFileId = "1SlObzcakqDlfeW1sKG85X9aPfS4Eg09EgSqt4p5mAxs";
+    const timetableFileId = "1QozwSM-LTjRMPjXp-UJdPtSAzo2Q9nu4zf8vfP0BRME";
 
-    const token = await getGoogleAccessToken(env);
+    const teacherFile = SpreadsheetApp.openById(teacherFileId);
 
-    const googleResponse = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    if (!teacherName) return "";
 
-    const googleData = await googleResponse.json();
-
-    if (!googleResponse.ok) {
-      return {
-        status: false,
-        message: "Google Sheets API error",
-        googleStatus: googleResponse.status,
-        error: googleData,
-      };
-    }
-
-    const values = googleData.values || [];
-
-    // Find voucher in the first column.
-
-    const rowIndex = values.findIndex(
-      (row) => String(row?.[0] || "").trim() === voucherId,
+    // Get all classes for this teacher from mapping file
+    const mappingSheet = SpreadsheetApp.openById(mappingFileId).getSheetByName(
+      "Class-Subject-Teacher",
     );
+    const mappingData = mappingSheet
+      .getRange(2, 1, mappingSheet.getLastRow() - 1, 3)
+      .getValues();
 
-    if (rowIndex === -1) {
-      return {
-        status: false,
-        message: "Voucher ID not found",
-        voucherId: voucherId,
-      };
+    const classSet = new Set();
+    for (let i = 0; i < mappingData.length; i++) {
+      const [className, teacher] = mappingData[i];
+      if (teacher.toLowerCase() === teacherName.toLowerCase()) {
+        classSet.add(className);
+      }
+    }
+    if (classSet.size === 0) return "";
+
+    // Get today's day name
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const todayName = dayNames[new Date().getDay()];
+
+    // Open timetable and prepare result
+    const timetableFile = SpreadsheetApp.openById(timetableFileId);
+    const result = {};
+
+    for (let className of classSet) {
+      const sheet = timetableFile.getSheetByName(className);
+      if (!sheet) continue;
+
+      const data = sheet.getDataRange().getValues();
+      const header = data[0];
+      const dayColIndex = header.findIndex(
+        (h) => h?.toString().trim() === todayName,
+      );
+      if (dayColIndex === -1) continue;
+
+      const subjectsToday = new Set();
+      for (let r = 1; r < data.length; r++) {
+        const cell = data[r][dayColIndex];
+        if (cell && cell.toString().includes("(")) {
+          const [subj, teacherInCellRaw] = cell.toString().split("(");
+          const teacherInCell = teacherInCellRaw.replace(")", "").trim();
+
+          if (teacherInCell === teacherName) {
+            subjectsToday.add(subj.trim());
+          }
+        }
+      }
+
+      // Get students for the class
+      const studentSheet = teacherFile.getSheetByName("Student Details");
+      const studentData = studentSheet
+        .getRange(2, 1, studentSheet.getLastRow() - 1, 5)
+        .getValues();
+
+      const students = [];
+      for (let i = 0; i < studentData.length; i++) {
+        const [studentName, isActive, admNumber, studentClass] = studentData[i];
+        let student_name_str = `${admNumber}_${studentName}`;
+
+        if (students_on_leave.includes(student_name_str))
+          student_name_str += " - L";
+
+        if (
+          isActive?.toString().trim().toUpperCase() === "Y" &&
+          studentClass === className &&
+          (student_ignore_map[student_name_str] == null ||
+            (Array.from(subjectsToday).length > 0 &&
+              !student_ignore_map[student_name_str].includes(
+                Array.from(subjectsToday)[0],
+              )))
+        ) {
+          students.push(student_name_str);
+        }
+      }
+
+      if (students.length == 0) continue;
+
+      // Sort students by name only
+      students.sort((a, b) => {
+        const nameA = a.split("_")[1].toLowerCase();
+        const nameB = b.split("_")[1].toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      console.log(students);
+      console.log(checkCal(now, className));
+      if (checkCal(now, className) == "N" && subjectsToday.size > 0) {
+        result[className] = {
+          subjects: Array.from(subjectsToday),
+          students: students,
+          examNextDay:
+            getCurrentExam(
+              className,
+              new Date(now.getTime() - millis_per_day),
+            ) == ""
+              ? 0
+              : 1,
+        };
+      }
     }
 
-    // Google Sheet row number is index + 1.
+    const cTResponse = getClassTests(undefined, Array.from(classSet));
 
-    const rowNumber = rowIndex + 1;
-
-    // Get the complete voucher row.
-
-    const rowRange = `${sheetName}!A${rowNumber}:Q${rowNumber}`;
-    const rowUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(rowRange)}`;
-
-    const rowResponse = await fetch(rowUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const rowData = await rowResponse.json();
-
-    if (!rowResponse.ok) {
-      return {
-        status: false,
-        message: "Unable to get voucher details",
-        googleStatus: rowResponse.status,
-        error: rowData,
-      };
-    }
-
-    const row = rowData.values?.[0] || [];
+    //Logger.log(result)
 
     return {
-      status: true,
-      message: "Voucher found",
-      voucherId: voucherId,
-      rowNumber: rowNumber,
-      data: row,
+      loggedInAs: teacherName,
+      role: "teacher",
+      data: result,
+      cTResponse: cTResponse,
     };
-  } catch (error) {
-    return {
-      status: false,
-      message: "Error searching voucher",
-      error: error.message,
-    };
+  } catch (ex) {
+    throw ex;
   }
 }
