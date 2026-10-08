@@ -112,7 +112,7 @@ async function getCurrentExam(
   return "";
 }
 
-function formatDateIST(inputDate, format = "yyyy/MM/dd") {
+export function formatDateIST(inputDate, format = "yyyy/MM/dd") {
   const date = new Date(inputDate);
 
   const parts = new Intl.DateTimeFormat("en-GB", {

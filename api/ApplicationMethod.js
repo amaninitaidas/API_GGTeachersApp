@@ -3,7 +3,6 @@ import {
   millis_per_day,
   school_db_id,
   fetchData,
-  fetchCalendarEvents,
   formatDateIST,
   checkCal,
 } from "../utils/Helper.js";
