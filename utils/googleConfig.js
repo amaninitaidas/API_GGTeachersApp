@@ -1,7 +1,35 @@
+async function readSecret(env, name) {
+  const value = env[name];
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  const binding = env[`${name}_STORE`] || value;
+
+  if (binding && typeof binding.get === "function") {
+    const value = await binding.get();
+
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+
+  if (binding == null) {
+    return undefined;
+  }
+
+  throw new Error(
+    `${name} must be a string or a readable Secrets Store binding`,
+  );
+}
+
 // Google Authentication
 export async function getGoogleAccessToken(env) {
-  const clientEmail = env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = env.GOOGLE_PRIVATE_KEY;
+  const [clientEmail, privateKey] = await Promise.all([
+    readSecret(env, "GOOGLE_CLIENT_EMAIL"),
+    readSecret(env, "GOOGLE_PRIVATE_KEY"),
+  ]);
 
   if (!clientEmail) {
     throw new Error("GOOGLE_CLIENT_EMAIL is missing");
@@ -25,7 +53,8 @@ export async function getGoogleAccessToken(env) {
 
   const payload = {
     iss: clientEmail,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
+    scope:
+      "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.readonly",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,

@@ -2,6 +2,7 @@ import { GET_TODAY_CLASS_DETAILS_FOR_TEACHER } from "./api/ApplicationMethod.js"
 
 export default {
   async fetch(request, env, ctx) {
+    console.log("Received request:", request.method, request.url);
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
