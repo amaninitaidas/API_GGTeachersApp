@@ -28,4 +28,8 @@
       "secret_name": "GOOGLE_PRIVATE_KEY",
     },
   ],
+  "limits": {
+    "cpu_ms": 100,
+    "subrequests": 50,
+  },
 }
