@@ -211,6 +211,7 @@ export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env) {
       role: "teacher",
       data: result,
       cTResponse: "",
+      status: true,
     };
   } catch (ex) {
     throw ex;
