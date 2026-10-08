@@ -28,4 +28,7 @@
       "secret_name": "GOOGLE_PRIVATE_KEY",
     },
   ],
+  "limits": {
+    "subrequests": 50,
+  },
 }
