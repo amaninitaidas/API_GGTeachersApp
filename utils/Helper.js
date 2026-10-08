@@ -6,7 +6,7 @@ export const calendar_url_base =
 export const school_db_id = "1iK2guH70XkRw4Haf38g9qnq34b6DRTmi2rqDHU0T6F4";
 export const millis_per_day = 24 * 3600 * 1000;
 
-const gg_calendars_map = {
+export const gg_calendars_map = {
   export:
     "ec8a98e4759a2165bfbb1832292ad6acc7070acfe5d64f4561da0913b690c175@group.calendar.google.com",
   main: "gaurangagurukul@gmail.com",
@@ -39,32 +39,32 @@ function isAllDayCalendarEvent(event) {
   return !!event.start?.date && !event.start?.dateTime;
 }
 
-async function getCurrentSession(event_date = "", class_name = "", env) {
-  const check_dt = event_date === "" ? new Date() : event_date;
+// async function getCurrentSession(event_date = "", class_name = "", env) {
+//   const check_dt = event_date === "" ? new Date() : event_date;
 
-  const inputDate = formatDateIST(check_dt, "yyyy-MM-dd");
+//   const inputDate = formatDateIST(check_dt, "yyyy-MM-dd");
 
-  const calendarId =
-    class_name === "" ? gg_calendars_map["main"] : gg_calendars_map[class_name];
+//   const calendarId =
+//     class_name === "" ? gg_calendars_map["main"] : gg_calendars_map[class_name];
 
-  const response = await fetchCalendarEvents(calendarId, inputDate, env);
+//   const response = await fetchCalendarEvents(calendarId, inputDate, env);
 
-  const calendar_events = response.data || [];
+//   const calendar_events = response.data || [];
 
-  for (const event of calendar_events) {
-    // Google Calendar API:
-    // all-day event has start.date
-    const isAllDay = !!event.start?.date && !event.start?.dateTime;
+//   for (const event of calendar_events) {
+//     // Google Calendar API:
+//     // all-day event has start.date
+//     const isAllDay = !!event.start?.date && !event.start?.dateTime;
 
-    const title = (event.summary || "").split(" : ")[0].trim().toLowerCase();
+//     const title = (event.summary || "").split(" : ")[0].trim().toLowerCase();
 
-    if (isAllDay && title === "session") {
-      return event.summary.split(" : ").slice(1).join(" : ").trim();
-    }
-  }
+//     if (isAllDay && title === "session") {
+//       return event.summary.split(" : ").slice(1).join(" : ").trim();
+//     }
+//   }
 
-  return "";
-}
+//   return "";
+// }
 
 export async function getCurrentExam(
   class_name = "",
@@ -112,6 +112,177 @@ export async function getCurrentExam(
   return "";
 }
 
+// export async function checkCal(
+//   input_dt = new Date(),
+//   class_name = "",
+//   chk_sunday = 1,
+//   env,
+// ) {
+//   let status = "N";
+
+//   // Format input date as yyyy-MM-dd for fetchCalendarEvents()
+//   const inputDate = formatDateIST(input_dt, "yyyy-MM-dd");
+
+//   // Main calendar events
+//   const mainCalendarEventsResponse = await fetchCalendarEvents(
+//     gg_calendars_map["main"],
+//     inputDate,
+//     env,
+//   );
+
+//   const main_calendar_events = mainCalendarEventsResponse.data || [];
+
+//   // Class calendar events
+//   let calendar_events = [];
+
+//   if (class_name !== "") {
+//     const calendarEventsResponse = await fetchCalendarEvents(
+//       gg_calendars_map[class_name],
+//       inputDate,
+//       env,
+//     );
+
+//     calendar_events = calendarEventsResponse.data || [];
+//   }
+
+//   // Sunday / no session / no examination
+//   if (
+//     (chk_sunday == 1 && formatDateIST(input_dt, "EEE") === "Sun") ||
+//     ((await getCurrentSession(input_dt, class_name, env)) === "" &&
+//       (await getCurrentExam(class_name, date, 0, env)) === "")
+//   ) {
+//     return "Y";
+//   }
+
+//   // Check class calendar
+//   for (let i = 0; i < calendar_events.length; i++) {
+//     const event = calendar_events[i];
+
+//     const title = (event.summary || "").split(" : ")[0].toLowerCase();
+
+//     // Holiday
+//     if (isAllDayCalendarEvent(event) && title === "holiday") {
+//       status = "Y";
+//       break;
+//     }
+
+//     // Examination
+//     if (title === "examination") {
+//       status = "E";
+//       break;
+//     }
+//   }
+
+//   // Check main calendar
+//   for (let i = 0; i < main_calendar_events.length; i++) {
+//     const event = main_calendar_events[i];
+
+//     const title = (event.summary || "").split(" : ")[0].toLowerCase();
+
+//     if (isAllDayCalendarEvent(event) && title === "holiday") {
+//       status = "Y";
+//       break;
+//     }
+//   }
+
+//   if (class_name !== "") {
+//     console.log("Returning status:", status, "for class:", class_name);
+//   }
+
+//   return status;
+// }
+
+export async function checkCal(
+  input_dt = new Date(),
+  class_name = "",
+  chk_sunday = 1,
+  env,
+  mainCalendarEvents = null,
+) {
+  let status = "N";
+
+  const inputDate = formatDateIST(input_dt, "yyyy-MM-dd");
+
+  let main_calendar_events = mainCalendarEvents;
+
+  if (!main_calendar_events) {
+    const mainCalendarEventsResponse = await fetchCalendarEvents(
+      gg_calendars_map["main"],
+      inputDate,
+      env,
+    );
+
+    main_calendar_events = mainCalendarEventsResponse.data || [];
+  }
+
+  // Class calendar
+  let calendar_events = [];
+
+  if (class_name !== "") {
+    const calendarEventsResponse = await fetchCalendarEvents(
+      gg_calendars_map[class_name],
+      inputDate,
+      env,
+    );
+
+    calendar_events = calendarEventsResponse.data || [];
+  }
+
+  // Sunday
+  if (chk_sunday === 1 && formatDateIST(input_dt, "EEE") === "Sun") {
+    return "Y";
+  }
+
+  // Check whether class has Session or Examination
+  let hasSession = false;
+  let hasExamination = false;
+
+  for (const event of calendar_events) {
+    const title = (event.summary || "").split(" : ")[0].trim().toLowerCase();
+
+    if (title === "session") {
+      hasSession = true;
+    }
+
+    if (title === "examination") {
+      hasExamination = true;
+    }
+
+    // Holiday
+    if (isAllDayCalendarEvent(event) && title === "holiday") {
+      status = "Y";
+      break;
+    }
+
+    // Examination
+    if (title === "examination") {
+      status = "E";
+      break;
+    }
+  }
+
+  // If there is no session AND no examination
+  if (!hasSession && !hasExamination) {
+    return "Y";
+  }
+
+  // Check main calendar for holiday
+  for (const event of main_calendar_events) {
+    const title = (event.summary || "").split(" : ")[0].trim().toLowerCase();
+
+    if (isAllDayCalendarEvent(event) && title === "holiday") {
+      status = "Y";
+      break;
+    }
+  }
+
+  if (class_name !== "") {
+    console.log("Returning status:", status, "for class:", class_name);
+  }
+
+  return status;
+}
+
 export function formatDateIST(inputDate = new Date(), format = "yyyy/MM/dd") {
   let date;
 
@@ -151,86 +322,6 @@ export function formatDateIST(inputDate = new Date(), format = "yyyy/MM/dd") {
     .replace("HH", values.hour)
     .replace("mm", values.minute)
     .replace("ss", values.second);
-}
-
-export async function checkCal(
-  input_dt = new Date(),
-  class_name = "",
-  chk_sunday = 1,
-  env,
-) {
-  let status = "N";
-
-  // Format input date as yyyy-MM-dd for fetchCalendarEvents()
-  const inputDate = formatDateIST(input_dt, "yyyy-MM-dd");
-
-  // Main calendar events
-  const mainCalendarEventsResponse = await fetchCalendarEvents(
-    gg_calendars_map["main"],
-    inputDate,
-    env,
-  );
-
-  const main_calendar_events = mainCalendarEventsResponse.data || [];
-
-  // Class calendar events
-  let calendar_events = [];
-
-  if (class_name !== "") {
-    const calendarEventsResponse = await fetchCalendarEvents(
-      gg_calendars_map[class_name],
-      inputDate,
-      env,
-    );
-
-    calendar_events = calendarEventsResponse.data || [];
-  }
-
-  // Sunday / no session / no examination
-  if (
-    (chk_sunday == 1 && formatDateIST(input_dt, "EEE") === "Sun") ||
-    ((await getCurrentSession(input_dt, class_name, env)) === "" &&
-      (await getCurrentExam(class_name, date, 0, env)) === "")
-  ) {
-    return "Y";
-  }
-
-  // Check class calendar
-  for (let i = 0; i < calendar_events.length; i++) {
-    const event = calendar_events[i];
-
-    const title = (event.summary || "").split(" : ")[0].toLowerCase();
-
-    // Holiday
-    if (isAllDayCalendarEvent(event) && title === "holiday") {
-      status = "Y";
-      break;
-    }
-
-    // Examination
-    if (title === "examination") {
-      status = "E";
-      break;
-    }
-  }
-
-  // Check main calendar
-  for (let i = 0; i < main_calendar_events.length; i++) {
-    const event = main_calendar_events[i];
-
-    const title = (event.summary || "").split(" : ")[0].toLowerCase();
-
-    if (isAllDayCalendarEvent(event) && title === "holiday") {
-      status = "Y";
-      break;
-    }
-  }
-
-  if (class_name !== "") {
-    console.log("Returning status:", status, "for class:", class_name);
-  }
-
-  return status;
 }
 
 export async function fetchData(sheetId, sheetName, env) {

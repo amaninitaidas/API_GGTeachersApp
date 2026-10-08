@@ -5,6 +5,8 @@ import {
   formatDateIST,
   checkCal,
   getCurrentExam,
+  gg_calendars_map,
+  fetchCalendarEvents,
 } from "../utils/Helper.js";
 
 async function getStudentStreamMap(env) {
@@ -117,150 +119,424 @@ async function getStudentLeaves(env) {
   return out_arr;
 }
 
+// export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env) {
+//   let student_ignore_map = await getStudentStreamMap(env);
+//   let students_on_leave = await getStudentLeaves(env);
+//   let now = new Date();
+//   const todayDate = formatDateIST(now, "yyyy-MM-dd");
+
+//   const mainCalendarEventsResponse = await fetchCalendarEvents(
+//     gg_calendars_map["main"],
+//     todayDate,
+//     env,
+//   );
+
+//   const mainCalendarEvents = mainCalendarEventsResponse.data || [];
+
+//   // Get today's day name
+//   const dayNames = [
+//     "Sunday",
+//     "Monday",
+//     "Tuesday",
+//     "Wednesday",
+//     "Thursday",
+//     "Friday",
+//     "Saturday",
+//   ];
+//   const todayName = dayNames[now.getDay()];
+
+//   try {
+//     let teacherName = inputData?.toString().trim();
+//     if (!teacherName) return "Teacher is required!";
+
+//     // File IDs
+//     const mappingFileId = "1SlObzcakqDlfeW1sKG85X9aPfS4Eg09EgSqt4p5mAxs";
+//     const timetableFileId = "1QozwSM-LTjRMPjXp-UJdPtSAzo2Q9nu4zf8vfP0BRME";
+
+//     // Get all classes for this teacher from mapping file
+//     const mappingDataResponse = await fetchData(
+//       mappingFileId,
+//       "Class-Subject-Teacher",
+//       env,
+//     );
+//     if (mappingDataResponse?.status === false) {
+//       throw new Error(
+//         mappingDataResponse?.message || "Unable to read Student Database",
+//       );
+//     }
+
+//     const mappingData = mappingDataResponse.data;
+
+//     const classSet = new Set();
+//     for (let i = 1; i < mappingData.length; i++) {
+//       const [className, teacher] = mappingData[i];
+//       if (teacher.toLowerCase() === teacherName.toLowerCase()) {
+//         classSet.add(className);
+//       }
+//     }
+//     if (classSet.size === 0) return "";
+
+//     // Open timetable and prepare result
+//     const result = {};
+
+//     for (let className of classSet) {
+//       const ttDataResponse = await fetchData(timetableFileId, className, env);
+//       if (ttDataResponse?.status === false) {
+//         throw new Error(
+//           ttDataResponse?.message || "Unable to read Student Database",
+//         );
+//       }
+
+//       const data = ttDataResponse.data;
+//       const header = data[0];
+//       const dayColIndex = header.findIndex(
+//         (h) => h?.toString().trim() === todayName,
+//       );
+//       if (dayColIndex === -1) continue;
+
+//       const subjectsToday = new Set();
+//       for (let r = 1; r < data.length; r++) {
+//         const cell = data[r][dayColIndex];
+//         if (cell && cell.toString().includes("(")) {
+//           const [subj, teacherInCellRaw] = cell.toString().split("(");
+//           const teacherInCell = teacherInCellRaw.replace(")", "").trim();
+
+//           if (teacherInCell === teacherName) {
+//             subjectsToday.add(subj.trim());
+//           }
+//         }
+//       }
+
+//       // Get students for the class
+//       const studentDataResponse = await fetchData(
+//         school_db_id,
+//         "Student Details",
+//         env,
+//       );
+//       if (studentDataResponse?.status === false) {
+//         throw new Error(
+//           studentDataResponse?.message || "Unable to read Student Database",
+//         );
+//       }
+
+//       const studentData = studentDataResponse.data;
+//       const students = [];
+//       for (let i = 1; i < studentData.length; i++) {
+//         const [studentName, isActive, admNumber, studentClass] = studentData[i];
+//         let student_name_str = `${admNumber}_${studentName}`;
+
+//         if (students_on_leave.includes(student_name_str))
+//           student_name_str += " - L";
+
+//         if (
+//           isActive?.toString().trim().toUpperCase() === "Y" &&
+//           studentClass === className &&
+//           (student_ignore_map[student_name_str] == null ||
+//             (Array.from(subjectsToday).length > 0 &&
+//               !student_ignore_map[student_name_str].includes(
+//                 Array.from(subjectsToday)[0],
+//               )))
+//         ) {
+//           students.push(student_name_str);
+//         }
+//       }
+
+//       if (students.length == 0) continue;
+
+//       // Sort students by name only
+//       students.sort((a, b) => {
+//         const nameA = a.split("_")[1].toLowerCase();
+//         const nameB = b.split("_")[1].toLowerCase();
+//         return nameA.localeCompare(nameB);
+//       });
+
+//       let calendarStatus = await checkCal(now, className, 1, env);
+
+//       if (calendarStatus == "N" && subjectsToday.size > 0) {
+//         result[className] = {
+//           subjects: Array.from(subjectsToday),
+//           students: students,
+//           examNextDay:
+//             (await getCurrentExam(
+//               className,
+//               new Date(now.getTime() - millis_per_day),
+//               0,
+//               env,
+//             )) == ""
+//               ? 0
+//               : 1,
+//         };
+//       }
+//     }
+
+//     //Logger.log(result)
+
+//     return {
+//       loggedInAs: teacherName,
+//       role: "teacher",
+//       data: result,
+//       cTResponse: {},
+//       status: true,
+//     };
+//   } catch (ex) {
+//     throw ex;
+//   }
+// }
+
 export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env) {
-  let student_ignore_map = await getStudentStreamMap(env);
-  let students_on_leave = await getStudentLeaves(env);
-  let now = new Date();
-
-  // Get today's day name
-  const dayNames = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const todayName = dayNames[now.getDay()];
-
   try {
-    let teacherName = inputData?.toString().trim();
-    if (!teacherName) return "Teacher is required!";
+    const teacherName = inputData?.toString().trim();
 
+    if (!teacherName) {
+      return "Teacher is required!";
+    }
+
+    const now = new Date();
+    const todayDate = formatDateIST(now, "yyyy-MM-dd");
+
+    // --------------------------------------------------
+    // Get common data ONCE
+    // --------------------------------------------------
+
+    const student_ignore_map = await getStudentStreamMap(env);
+    const students_on_leave = await getStudentLeaves(env);
+
+    // Student Details - only ONE API call
+    const studentDataResponse = await fetchData(
+      school_db_id,
+      "Student Details",
+      env,
+    );
+
+    if (studentDataResponse?.status === false) {
+      throw new Error(
+        studentDataResponse?.message || "Unable to read Student Database",
+      );
+    }
+
+    const studentData = studentDataResponse.data;
+
+    // Main calendar - only ONE API call for today
+    const mainCalendarEventsResponse = await fetchCalendarEvents(
+      gg_calendars_map["main"],
+      todayDate,
+      env,
+    );
+
+    if (mainCalendarEventsResponse?.status === false) {
+      throw new Error(
+        mainCalendarEventsResponse?.message || "Unable to read main calendar",
+      );
+    }
+
+    const mainCalendarEvents = mainCalendarEventsResponse.data || [];
+
+    // --------------------------------------------------
+    // Today's day
+    // --------------------------------------------------
+
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+
+    const todayName = dayNames[now.getDay()];
+
+    // --------------------------------------------------
     // File IDs
+    // --------------------------------------------------
+
     const mappingFileId = "1SlObzcakqDlfeW1sKG85X9aPfS4Eg09EgSqt4p5mAxs";
+
     const timetableFileId = "1QozwSM-LTjRMPjXp-UJdPtSAzo2Q9nu4zf8vfP0BRME";
 
-    if (!teacherName) return "";
+    // --------------------------------------------------
+    // Get all classes for this teacher
+    // --------------------------------------------------
 
-    // Get all classes for this teacher from mapping file
     const mappingDataResponse = await fetchData(
       mappingFileId,
       "Class-Subject-Teacher",
       env,
     );
+
     if (mappingDataResponse?.status === false) {
       throw new Error(
-        mappingDataResponse?.message || "Unable to read Student Database",
+        mappingDataResponse?.message || "Unable to read Class-Subject-Teacher",
       );
     }
 
     const mappingData = mappingDataResponse.data;
 
     const classSet = new Set();
+
     for (let i = 1; i < mappingData.length; i++) {
       const [className, teacher] = mappingData[i];
-      if (teacher.toLowerCase() === teacherName.toLowerCase()) {
+
+      if (
+        teacher?.toString().trim().toLowerCase() === teacherName.toLowerCase()
+      ) {
         classSet.add(className);
       }
     }
-    if (classSet.size === 0) return "";
 
-    // Open timetable and prepare result
+    if (classSet.size === 0) {
+      return "";
+    }
+
+    // --------------------------------------------------
+    // Prepare result
+    // --------------------------------------------------
+
     const result = {};
 
-    for (let className of classSet) {
+    // --------------------------------------------------
+    // Process each class
+    // --------------------------------------------------
+
+    for (const className of classSet) {
+      // ----------------------------------------------
+      // Get timetable
+      // ----------------------------------------------
+
       const ttDataResponse = await fetchData(timetableFileId, className, env);
+
       if (ttDataResponse?.status === false) {
-        throw new Error(
-          ttDataResponse?.message || "Unable to read Student Database",
-        );
+        throw new Error(ttDataResponse?.message || "Unable to read timetable");
       }
 
       const data = ttDataResponse.data;
+
+      if (!data || data.length === 0) {
+        continue;
+      }
+
       const header = data[0];
+
       const dayColIndex = header.findIndex(
         (h) => h?.toString().trim() === todayName,
       );
-      if (dayColIndex === -1) continue;
+
+      if (dayColIndex === -1) {
+        continue;
+      }
+
+      // ----------------------------------------------
+      // Find today's subjects for this teacher
+      // ----------------------------------------------
 
       const subjectsToday = new Set();
+
       for (let r = 1; r < data.length; r++) {
         const cell = data[r][dayColIndex];
+
         if (cell && cell.toString().includes("(")) {
           const [subj, teacherInCellRaw] = cell.toString().split("(");
-          const teacherInCell = teacherInCellRaw.replace(")", "").trim();
 
-          if (teacherInCell === teacherName) {
+          const teacherInCell = teacherInCellRaw?.replace(")", "").trim();
+
+          if (teacherInCell?.toLowerCase() === teacherName.toLowerCase()) {
             subjectsToday.add(subj.trim());
           }
         }
       }
 
-      // Get students for the class
-      const studentDataResponse = await fetchData(
-        school_db_id,
-        "Student Details",
-        env,
-      );
-      if (studentDataResponse?.status === false) {
-        throw new Error(
-          studentDataResponse?.message || "Unable to read Student Database",
-        );
+      if (subjectsToday.size === 0) {
+        continue;
       }
 
-      const studentData = studentDataResponse.data;
+      // ----------------------------------------------
+      // Get students for this class
+      // ----------------------------------------------
+
       const students = [];
+
       for (let i = 1; i < studentData.length; i++) {
         const [studentName, isActive, admNumber, studentClass] = studentData[i];
-        let student_name_str = `${admNumber}_${studentName}`;
-
-        if (students_on_leave.includes(student_name_str))
-          student_name_str += " - L";
 
         if (
-          isActive?.toString().trim().toUpperCase() === "Y" &&
-          studentClass === className &&
-          (student_ignore_map[student_name_str] == null ||
-            (Array.from(subjectsToday).length > 0 &&
-              !student_ignore_map[student_name_str].includes(
-                Array.from(subjectsToday)[0],
-              )))
+          isActive?.toString().trim().toUpperCase() !== "Y" ||
+          studentClass !== className
         ) {
+          continue;
+        }
+
+        let student_name_str = `${admNumber}_${studentName}`;
+
+        const isOnLeave = students_on_leave.includes(student_name_str);
+
+        if (isOnLeave) {
+          student_name_str += " - L";
+        }
+
+        const ignoredSubjects = student_ignore_map[student_name_str];
+
+        const firstSubject = Array.from(subjectsToday)[0];
+
+        const shouldIgnore =
+          ignoredSubjects != null &&
+          firstSubject &&
+          ignoredSubjects.includes(firstSubject);
+
+        if (!shouldIgnore) {
           students.push(student_name_str);
         }
       }
 
-      if (students.length == 0) continue;
+      if (students.length === 0) {
+        continue;
+      }
 
-      // Sort students by name only
+      // ----------------------------------------------
+      // Sort students by name
+      // ----------------------------------------------
+
       students.sort((a, b) => {
-        const nameA = a.split("_")[1].toLowerCase();
-        const nameB = b.split("_")[1].toLowerCase();
+        const nameA = a.split("_")[1]?.toLowerCase() || "";
+
+        const nameB = b.split("_")[1]?.toLowerCase() || "";
+
         return nameA.localeCompare(nameB);
       });
 
-      let calendarStatus = await checkCal(now, className, 1, env);
+      // ----------------------------------------------
+      // Check today's calendar
+      // ----------------------------------------------
 
-      if (calendarStatus == "N" && subjectsToday.size > 0) {
+      const calendarStatus = await checkCal(
+        now,
+        className,
+        1,
+        env,
+        mainCalendarEvents,
+      );
+
+      // ----------------------------------------------
+      // Add class to result
+      // ----------------------------------------------
+
+      if (calendarStatus === "N" && subjectsToday.size > 0) {
+        const yesterday = new Date(now.getTime() - millis_per_day);
+
+        const examYesterday = await getCurrentExam(
+          className,
+          yesterday,
+          0,
+          env,
+        );
+
         result[className] = {
           subjects: Array.from(subjectsToday),
           students: students,
-          examNextDay:
-            (await getCurrentExam(
-              className,
-              new Date(now.getTime() - millis_per_day),
-              0,
-              env,
-            )) == ""
-              ? 0
-              : 1,
+          examNextDay: examYesterday === "" ? 0 : 1,
         };
       }
     }
-
-    //Logger.log(result)
 
     return {
       loggedInAs: teacherName,
@@ -270,6 +546,8 @@ export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env) {
       status: true,
     };
   } catch (ex) {
+    console.error("GET_TODAY_CLASS_DETAILS_FOR_TEACHER Error:", ex);
+
     throw ex;
   }
 }
