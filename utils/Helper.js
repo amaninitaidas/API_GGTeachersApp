@@ -4,8 +4,8 @@ export const url_base = "https://sheets.googleapis.com/v4/spreadsheets";
 export const calendar_url_base =
   "https://www.googleapis.com/calendar/v3/calendars";
 export const school_db_id = "1iK2guH70XkRw4Haf38g9qnq34b6DRTmi2rqDHU0T6F4";
-export const now = new Date();
 export const millis_per_day = 24 * 3600 * 1000;
+
 const gg_calendars_map = {
   export:
     "ec8a98e4759a2165bfbb1832292ad6acc7070acfe5d64f4561da0913b690c175@group.calendar.google.com",
@@ -66,7 +66,7 @@ async function getCurrentSession(event_date = "", class_name = "", env) {
   return "";
 }
 
-async function getCurrentExam(
+export async function getCurrentExam(
   class_name = "",
   event_date = "",
   check_start_dt = 0,
@@ -112,8 +112,22 @@ async function getCurrentExam(
   return "";
 }
 
-export function formatDateIST(inputDate, format = "yyyy/MM/dd") {
-  const date = new Date(inputDate);
+export function formatDateIST(inputDate = new Date(), format = "yyyy/MM/dd") {
+  let date;
+
+  if (inputDate instanceof Date) {
+    date = inputDate;
+  } else if (typeof inputDate === "string") {
+    // dd/MM/yyyy
+    const [day, month, year] = inputDate.split("/").map(Number);
+    date = new Date(year, month - 1, day);
+  } else {
+    throw new Error(`Invalid date input: ${inputDate}`);
+  }
+
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${inputDate}`);
+  }
 
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
@@ -126,11 +140,9 @@ export function formatDateIST(inputDate, format = "yyyy/MM/dd") {
     hour12: false,
   }).formatToParts(date);
 
-  const values = {};
-
-  parts.forEach(({ type, value }) => {
-    values[type] = value;
-  });
+  const values = Object.fromEntries(
+    parts.map(({ type, value }) => [type, value]),
+  );
 
   return format
     .replace("yyyy", values.year)
@@ -142,7 +154,7 @@ export function formatDateIST(inputDate, format = "yyyy/MM/dd") {
 }
 
 export async function checkCal(
-  input_dt = now,
+  input_dt = new Date(),
   class_name = "",
   chk_sunday = 1,
   env,
