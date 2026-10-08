@@ -1,5 +1,5 @@
 {
-  "name": "api_ggteachersapp",
+  "name": "api-ggteachersapp",
   "main": "worker.js",
   "compatibility_date": "2026-10-06",
   "secrets_store_secrets": [
