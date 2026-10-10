@@ -5,7 +5,7 @@ export const GOOGLE_SCOPES =
   "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/script.send_mail https://www.googleapis.com/auth/calendar";
 
 export const GOOGLE_SCRIPT_ID =
-  "1Qbs3XsZvEFDW9vol10og9V4BqPjhu7w6AuhVuGO5BADFFfEUdt32RVaa";
+  "1TVxwoOwk-KPnOpV5DppYvqqgbqZrd9pm4diY5S4S4HEmmXw1YDA_rLuL";
 
 // Google Sheet Configuration
 export const SPREADSHEET_ID = "12RLRK6PjQVeysGskGu6Zanpx6AFU7QwMbU__Ec8JjWI";
