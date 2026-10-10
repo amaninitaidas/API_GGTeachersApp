@@ -123,15 +123,6 @@ async function getStudentLeaves(env) {
 //   let student_ignore_map = await getStudentStreamMap(env);
 //   let students_on_leave = await getStudentLeaves(env);
 //   let now = new Date();
-//   const todayDate = formatDateIST(now, "yyyy-MM-dd");
-
-//   const mainCalendarEventsResponse = await fetchCalendarEvents(
-//     gg_calendars_map["main"],
-//     todayDate,
-//     env,
-//   );
-
-//   const mainCalendarEvents = mainCalendarEventsResponse.data || [];
 
 //   // Get today's day name
 //   const dayNames = [
