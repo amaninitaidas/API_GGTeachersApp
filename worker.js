@@ -257,6 +257,10 @@ export default {
           functionName = "GET_TEACHER_CLASS_SUBJECTS_AND_STUDENTS_BY_NAME_FUN";
           break;
 
+        case "GET_TEACHER_ELIGIBLE_SUBJECTS":
+          functionName = "TEACHER_HW_SUBJECTS";
+          break;
+
         default:
           response = {
             status: false,
@@ -271,7 +275,7 @@ export default {
       }
 
       response = {
-        data: response,
+        ...response,
         status: response?.status === false ? false : true,
       };
 
