@@ -183,10 +183,7 @@ export default {
     }
     if (request.method === "GET" && url.pathname === "/test-apps-script") {
       try {
-        const result = await runAppsScriptFunction(
-          env,
-          "TEST_EMAIL_PERMISSION",
-        );
+        const result = await runAppsScriptFunction(env, "sendTestMail");
 
         return new Response(
           JSON.stringify({
