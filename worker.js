@@ -35,20 +35,9 @@ function createOAuthState() {
   return crypto.randomUUID();
 }
 
-async function inputSaleMasterData(env, saleData) {
+async function executeScriptFunction(env, functionName, inputData = {}) {
   try {
-    if (typeof saleData === "string") {
-      saleData = JSON.parse(saleData);
-    }
-    if (!Array.isArray(saleData) || saleData.length === 0) {
-      throw new Error("inputData must contain a non-empty sale array");
-    }
-
-    const result = await runAppsScriptFunction(
-      env,
-      "inputSaleMasterData",
-      saleData,
-    );
+    const result = await runAppsScriptFunction(env, functionName, inputData);
     return {
       status: true,
       message: "Apps Script executed successfully",
@@ -56,7 +45,7 @@ async function inputSaleMasterData(env, saleData) {
     };
   } catch (error) {
     console.error(
-      "CREATE_SALE Apps Script error:",
+      `${functionName} Apps Script error:`,
       error?.stack || error?.message || error,
     );
     return {
@@ -259,53 +248,13 @@ export default {
       const inputData = requestData.inputData || {};
 
       let response;
+      let functionName = "";
 
       // API routing
 
       switch (apiType) {
-        case "GET_ALL_USER_LIST_NEW":
-          response = await GET_ALL_USER_LIST_NEW(inputData, env);
-          break;
-
-        case "TEST_KEY":
-          response = await TEST_KEY(env);
-          break;
-
-        case "SEARCH_VOUCHER":
-          response = await SEARCH_VOUCHER(inputData, env);
-          break;
-
-        case "GET_DATA":
-          response = await GET_DATA(inputData, env);
-          break;
-
-        case "UPDATE_STOCK": {
-          const lockId = env.STOCK_UPDATE_LOCK.idFromName(
-            "global-stock-update",
-          );
-          const lock = env.STOCK_UPDATE_LOCK.get(lockId);
-          const lockResponse = await lock.fetch(
-            "https://stock-update/execute",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(requestData),
-            },
-          );
-          response = await lockResponse.json();
-          break;
-        }
-
-        case "SAVE_DATA":
-          response = await SAVE_DATA(inputData, env);
-          break;
-
-        case "DELETE_DATA":
-          response = await DELETE_DATA(inputData, env);
-          break;
-
-        case "CREATE_SALE":
-          response = await inputSaleMasterData(env, inputData);
+        case "GET_TODAY_CLASS_DETAILS_FOR_TEACHER":
+          functionName = "GET_TEACHER_CLASS_SUBJECTS_AND_STUDENTS_BY_NAME_FUN";
           break;
 
         default:
@@ -317,8 +266,12 @@ export default {
           break;
       }
 
+      if (functionName !== "") {
+        response = await executeScriptFunction(env, functionName, inputData);
+      }
+
       response = {
-        ...response,
+        data: response,
         status: response?.status === false ? false : true,
       };
 
@@ -348,13 +301,3 @@ export default {
     }
   },
 };
-
-function TEST_EMAIL_PERMISSION() {
-  MailApp.sendEmail(
-    "hellohoneymittal@gmail.com",
-    "Test Email",
-    "Testing MailApp permission",
-  );
-
-  return "Email sent";
-}
