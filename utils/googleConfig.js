@@ -1,5 +1,5 @@
 export const GOOGLE_REDIRECT_URI =
-  "https://api-nkdsadhnatool.nityakrishnadas-pnc.workers.dev/oauth/callback";
+  "https://api-ggteachersapp.gaurangagurukul.workers.dev/oauth/callback";
 
 export const GOOGLE_SCOPES =
   "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/script.send_mail";
