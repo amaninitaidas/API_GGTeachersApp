@@ -2,30 +2,22 @@
   "name": "api-ggteachersapp",
   "main": "worker.js",
   "compatibility_date": "2026-10-06",
-  "previews": {
-    "secrets_store_secrets": [
-      {
-        "binding": "GOOGLE_CLIENT_EMAIL_STORE",
-        "store_id": "844a9f02f9d74361858d9b96cf9ffa73",
-        "secret_name": "GOOGLE_CLIENT_EMAIL",
-      },
-      {
-        "binding": "GOOGLE_PRIVATE_KEY_STORE",
-        "store_id": "844a9f02f9d74361858d9b96cf9ffa73",
-        "secret_name": "GOOGLE_PRIVATE_KEY",
-      },
-    ],
-  },
+
   "secrets_store_secrets": [
     {
-      "binding": "GOOGLE_CLIENT_EMAIL_STORE",
+      "binding": "API_CLIENT_ID_STORE",
       "store_id": "844a9f02f9d74361858d9b96cf9ffa73",
-      "secret_name": "GOOGLE_CLIENT_EMAIL",
+      "secret_name": "API_CLIENT_ID",
     },
     {
-      "binding": "GOOGLE_PRIVATE_KEY_STORE",
+      "binding": "API_CLIENT_SECRET_STORE",
       "store_id": "844a9f02f9d74361858d9b96cf9ffa73",
-      "secret_name": "GOOGLE_PRIVATE_KEY",
+      "secret_name": "API_CLIENT_SECRET",
+    },
+    {
+      "binding": "API_REFRESH_TOKEN_STORE",
+      "store_id": "844a9f02f9d74361858d9b96cf9ffa73",
+      "secret_name": "API_REFRESH_TOKEN",
     },
   ],
 }

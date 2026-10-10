@@ -1,8 +1,8 @@
 {
-  "name": "my-testing-api",
+  "name": "my-nature-api",
   "version": "1.0.0",
   "description": "",
-  "main": "worker.js",
+  "main": "index.js",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -13,7 +13,9 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "wrangler": "^4.147.0",
+    "wrangler": "^4.147.0"
+  },
+  "dependencies": {
     "nkd-common-dev-lib": "github:hellohoneymittal/NKDCommonDevLib"
   }
 }

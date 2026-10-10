@@ -1,544 +1,385 @@
 import {
-  millis_per_day,
-  school_db_id,
-  fetchData,
-  formatDateIST,
-  checkCal,
-  getCurrentExam,
-  gg_calendars_map,
-  fetchCalendarEvents,
-} from "../utils/Helper.js";
+  SPREADSHEET_ID,
+  USER_MASTER_SPREADSHEET_ID,
+  getGoogleAccessToken,
+} from "../utils/googleConfig.js";
+import { addNumbers, sayHello, multiplyNumbers } from "nkd-common-dev-lib";
 
-async function getStudentStreamMap(env) {
-  let student_ignore_map = {};
-  let i, j;
-  let student_st_map = {};
-  let student_data = [];
-  let stream_data = [];
-  let stream_sub_map = {};
-  let stream_classes = ["Sri Damodara", "Sri Vasudeva"];
+// GET DATA
 
-  const response = await fetchData(school_db_id, "Students", env);
-  if (response?.status === false) {
-    throw new Error(response?.message || "Unable to read Student Database");
+export async function GET_DATA(inputData, env) {
+  const sheetName = inputData.sheetName;
+  //testing honey again
+  if (!sheetName) {
+    return {
+      status: false,
+      message: "sheetName is required",
+    };
   }
 
-  student_data = response.data;
+  const accessToken = await getGoogleAccessToken(env);
+  const range = encodeURIComponent(`'${sheetName}'`);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
 
-  for (i = 1; i < student_data.length; i++) {
-    if (
-      student_data[i][0] != "" &&
-      student_data[i][1] == "Y" &&
-      student_data[i][24] != "" &&
-      stream_classes.includes(student_data[i][2])
-    ) {
-      student_st_map[student_data[i][3] + "_" + student_data[i][0]] =
-        student_data[i][24];
-    }
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("GET_DATA Google Error:", data);
+
+    throw new Error(data.error?.message || "Unable to read Google Sheet");
   }
 
-  const streamResponse = await fetchData(
-    school_db_id,
-    "Senior Secondary Streams",
-    env,
-  );
-  if (streamResponse?.status === false) {
+  const libraryTest = {
+    addResult: addNumbers(10, 20),
+    helloResult: sayHello("Honey"),
+    multiplyResult: multiplyNumbers(5, 5),
+  };
+
+  return {
+    status: true,
+    message: "GET_DATA successful",
+
+    // Existing Google Sheet data
+    data: data.values || [],
+
+    // Common Library Test
+    libraryTest: libraryTest,
+  };
+}
+
+// SAVE DATA
+
+export async function SAVE_DATA(inputData, env) {
+  const sheetName = inputData.sheetName;
+  const rowData = inputData.rowData;
+
+  if (!sheetName) {
+    return {
+      status: false,
+      message: "sheetName is required",
+    };
+  }
+
+  if (!Array.isArray(rowData)) {
+    return {
+      status: false,
+      message: "rowData must be an array",
+    };
+  }
+
+  const accessToken = await getGoogleAccessToken(env);
+  const range = encodeURIComponent(`'${sheetName}'`);
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      values: [rowData],
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("SAVE_DATA Google Error:", data);
+
     throw new Error(
-      streamResponse?.message || "Unable to read Senior Secondary Streams",
+      data.error?.message || "Unable to save data to Google Sheet",
     );
   }
-  stream_data = streamResponse.data;
 
-  for (i = 1; i < stream_data.length; i++) {
-    if (stream_data[i][1] == "") break;
-    stream_sub_map[stream_data[i][1]] = stream_data[i][2].split(", ");
-  }
-
-  const classResponse = await fetchData(school_db_id, "Classes", env);
-  if (classResponse?.status === false) {
-    throw new Error(classResponse?.message || "Unable to read Classes");
-  }
-  let class_data = classResponse.data;
-  let all_sub_arr = [];
-
-  for (i = 15; i < class_data.length; i++) {
-    for (j = 4; j < class_data[i].length; j++) {
-      if (class_data[i][j] == "") break;
-      if (!all_sub_arr.includes(class_data[i][j]))
-        all_sub_arr.push(class_data[i][j]);
-    }
-  }
-
-  for (let student_name in student_st_map) {
-    student_ignore_map[student_name] = [];
-    for (i = 0; i < all_sub_arr.length; i++) {
-      if (
-        !stream_sub_map[student_st_map[student_name]].includes(all_sub_arr[i])
-      )
-        student_ignore_map[student_name].push(all_sub_arr[i]);
-    }
-  }
-
-  //Logger.log(student_ignore_map)
-
-  return student_ignore_map;
+  return {
+    status: true,
+    message: "SAVE_DATA successful",
+    data: data,
+  };
 }
 
-async function getStudentLeaves(env) {
-  const response = await fetchData(
-    "1FsrJVzfaCWwIWfIjaDU_I_Z9iHP4E3cK_veAdB8tsDo",
-    "Student Input",
-    env,
-  );
+// DELETE DATA
 
-  if (response?.status === false) {
-    throw new Error(response?.message || "Unable to read Student Leaves");
+export async function DELETE_DATA(inputData, env) {
+  const sheetName = inputData.sheetName;
+  const rowNumber = Number(inputData.rowNumber ?? inputData.rowIndex);
+
+  if (!sheetName) {
+    return {
+      status: false,
+      message: "sheetName is required",
+    };
   }
 
-  let i;
-  const data = response.data;
-  const today_dt = formatDateIST();
+  // Row numbers are 1-based.
 
-  let out_arr = [];
-
-  for (i = 1; i < data.length; i++) {
-    if (data[i][0] == "") break;
-
-    // console.log(formatDateIST(data[i][1]), formatDateIST(data[i][2]), today_dt);
-    if (
-      formatDateIST(data[i][1]) > today_dt ||
-      formatDateIST(data[i][2]) < today_dt
-    )
-      continue;
-
-    if (!out_arr.includes(data[i][3])) out_arr.push(data[i][3]);
+  if (!Number.isInteger(rowNumber) || rowNumber < 1) {
+    return {
+      status: false,
+      message: "Valid rowNumber is required",
+    };
   }
 
-  //console.log(out_arr);
+  const accessToken = await getGoogleAccessToken(env);
 
-  return out_arr;
+  const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`;
+
+  const metadataResponse = await fetch(metadataUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const metadata = await metadataResponse.json();
+
+  if (!metadataResponse.ok) {
+    console.error("Spreadsheet Metadata Error:", metadata);
+
+    throw new Error(
+      metadata.error?.message || "Unable to get spreadsheet metadata",
+    );
+  }
+
+  const sheet = metadata.sheets?.find((s) => s.properties?.title === sheetName);
+
+  if (!sheet) {
+    return {
+      status: false,
+      message: `Sheet '${sheetName}' not found`,
+    };
+  }
+
+  const sheetId = sheet.properties.sheetId;
+  const startIndex = rowNumber - 1;
+  const endIndex = rowNumber;
+
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`;
+
+  const response = await fetch(batchUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheetId,
+              dimension: "ROWS",
+              startIndex: startIndex,
+              endIndex: endIndex,
+            },
+          },
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("DELETE_DATA Google Error:", data);
+
+    throw new Error(data.error?.message || "Unable to delete row");
+  }
+
+  return {
+    status: true,
+    message: "DELETE_DATA successful",
+    data: {
+      sheetName: sheetName,
+      deletedRowNumber: rowNumber,
+    },
+  };
 }
 
-// export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env) {
-//   let student_ignore_map = await getStudentStreamMap(env);
-//   let students_on_leave = await getStudentLeaves(env);
-//   let now = new Date();
+// SEARCH VOUCHER
 
-//   // Get today's day name
-//   const dayNames = [
-//     "Sunday",
-//     "Monday",
-//     "Tuesday",
-//     "Wednesday",
-//     "Thursday",
-//     "Friday",
-//     "Saturday",
-//   ];
-//   const todayName = dayNames[now.getDay()];
+export async function SEARCH_VOUCHER(inputData, env) {
+  const sheetName = inputData?.sheetName || "Sheet1";
+  const voucherId = String(inputData?.voucherId || "").trim();
 
-//   try {
-//     let teacherName = inputData?.toString().trim();
-//     if (!teacherName) return "Teacher is required!";
+  if (!voucherId) {
+    return {
+      status: false,
+      message: "Voucher ID is required",
+    };
+  }
 
-//     // File IDs
-//     const mappingFileId = "1SlObzcakqDlfeW1sKG85X9aPfS4Eg09EgSqt4p5mAxs";
-//     const timetableFileId = "1QozwSM-LTjRMPjXp-UJdPtSAzo2Q9nu4zf8vfP0BRME";
-
-//     // Get all classes for this teacher from mapping file
-//     const mappingDataResponse = await fetchData(
-//       mappingFileId,
-//       "Class-Subject-Teacher",
-//       env,
-//     );
-//     if (mappingDataResponse?.status === false) {
-//       throw new Error(
-//         mappingDataResponse?.message || "Unable to read Student Database",
-//       );
-//     }
-
-//     const mappingData = mappingDataResponse.data;
-
-//     const classSet = new Set();
-//     for (let i = 1; i < mappingData.length; i++) {
-//       const [className, teacher] = mappingData[i];
-//       if (teacher.toLowerCase() === teacherName.toLowerCase()) {
-//         classSet.add(className);
-//       }
-//     }
-//     if (classSet.size === 0) return "";
-
-//     // Open timetable and prepare result
-//     const result = {};
-
-//     for (let className of classSet) {
-//       const ttDataResponse = await fetchData(timetableFileId, className, env);
-//       if (ttDataResponse?.status === false) {
-//         throw new Error(
-//           ttDataResponse?.message || "Unable to read Student Database",
-//         );
-//       }
-
-//       const data = ttDataResponse.data;
-//       const header = data[0];
-//       const dayColIndex = header.findIndex(
-//         (h) => h?.toString().trim() === todayName,
-//       );
-//       if (dayColIndex === -1) continue;
-
-//       const subjectsToday = new Set();
-//       for (let r = 1; r < data.length; r++) {
-//         const cell = data[r][dayColIndex];
-//         if (cell && cell.toString().includes("(")) {
-//           const [subj, teacherInCellRaw] = cell.toString().split("(");
-//           const teacherInCell = teacherInCellRaw.replace(")", "").trim();
-
-//           if (teacherInCell === teacherName) {
-//             subjectsToday.add(subj.trim());
-//           }
-//         }
-//       }
-
-//       // Get students for the class
-//       const studentDataResponse = await fetchData(
-//         school_db_id,
-//         "Student Details",
-//         env,
-//       );
-//       if (studentDataResponse?.status === false) {
-//         throw new Error(
-//           studentDataResponse?.message || "Unable to read Student Database",
-//         );
-//       }
-
-//       const studentData = studentDataResponse.data;
-//       const students = [];
-//       for (let i = 1; i < studentData.length; i++) {
-//         const [studentName, isActive, admNumber, studentClass] = studentData[i];
-//         let student_name_str = `${admNumber}_${studentName}`;
-
-//         if (students_on_leave.includes(student_name_str))
-//           student_name_str += " - L";
-
-//         if (
-//           isActive?.toString().trim().toUpperCase() === "Y" &&
-//           studentClass === className &&
-//           (student_ignore_map[student_name_str] == null ||
-//             (Array.from(subjectsToday).length > 0 &&
-//               !student_ignore_map[student_name_str].includes(
-//                 Array.from(subjectsToday)[0],
-//               )))
-//         ) {
-//           students.push(student_name_str);
-//         }
-//       }
-
-//       if (students.length == 0) continue;
-
-//       // Sort students by name only
-//       students.sort((a, b) => {
-//         const nameA = a.split("_")[1].toLowerCase();
-//         const nameB = b.split("_")[1].toLowerCase();
-//         return nameA.localeCompare(nameB);
-//       });
-
-//       let calendarStatus = await checkCal(now, className, 1, env);
-
-//       if (calendarStatus == "N" && subjectsToday.size > 0) {
-//         result[className] = {
-//           subjects: Array.from(subjectsToday),
-//           students: students,
-//           examNextDay:
-//             (await getCurrentExam(
-//               className,
-//               new Date(now.getTime() - millis_per_day),
-//               0,
-//               env,
-//             )) == ""
-//               ? 0
-//               : 1,
-//         };
-//       }
-//     }
-
-//     //Logger.log(result)
-
-//     return {
-//       loggedInAs: teacherName,
-//       role: "teacher",
-//       data: result,
-//       cTResponse: {},
-//       status: true,
-//     };
-//   } catch (ex) {
-//     throw ex;
-//   }
-// }
-
-export async function GET_TODAY_CLASS_DETAILS_FOR_TEACHER(inputData, env) {
   try {
-    const teacherName = inputData?.toString().trim();
+    // Get voucher IDs from the first column.
 
-    if (!teacherName) {
-      return "Teacher is required!";
+    const range = `${sheetName}!A:A`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
+
+    const token = await getGoogleAccessToken(env);
+
+    const googleResponse = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const googleData = await googleResponse.json();
+
+    if (!googleResponse.ok) {
+      return {
+        status: false,
+        message: "Google Sheets API error",
+        googleStatus: googleResponse.status,
+        error: googleData,
+      };
     }
 
-    const now = new Date();
-    const todayDate = formatDateIST(now, "yyyy-MM-dd");
+    const values = googleData.values || [];
 
-    // --------------------------------------------------
-    // Get common data ONCE
-    // --------------------------------------------------
+    // Find voucher in the first column.
 
-    const student_ignore_map = await getStudentStreamMap(env);
-    const students_on_leave = await getStudentLeaves(env);
-
-    // Student Details - only ONE API call
-    const studentDataResponse = await fetchData(
-      school_db_id,
-      "Student Details",
-      env,
+    const rowIndex = values.findIndex(
+      (row) => String(row?.[0] || "").trim() === voucherId,
     );
 
-    if (studentDataResponse?.status === false) {
-      throw new Error(
-        studentDataResponse?.message || "Unable to read Student Database",
-      );
+    if (rowIndex === -1) {
+      return {
+        status: false,
+        message: "Voucher ID not found",
+        voucherId: voucherId,
+      };
     }
 
-    const studentData = studentDataResponse.data;
+    // Google Sheet row number is index + 1.
 
-    // Main calendar - only ONE API call for today
-    const mainCalendarEventsResponse = await fetchCalendarEvents(
-      gg_calendars_map["main"],
-      todayDate,
-      env,
-    );
+    const rowNumber = rowIndex + 1;
 
-    if (mainCalendarEventsResponse?.status === false) {
-      throw new Error(
-        mainCalendarEventsResponse?.message || "Unable to read main calendar",
-      );
+    // Get the complete voucher row.
+
+    const rowRange = `${sheetName}!A${rowNumber}:Q${rowNumber}`;
+    const rowUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(rowRange)}`;
+
+    const rowResponse = await fetch(rowUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const rowData = await rowResponse.json();
+
+    if (!rowResponse.ok) {
+      return {
+        status: false,
+        message: "Unable to get voucher details",
+        googleStatus: rowResponse.status,
+        error: rowData,
+      };
     }
 
-    const mainCalendarEvents = mainCalendarEventsResponse.data || [];
-
-    // --------------------------------------------------
-    // Today's day
-    // --------------------------------------------------
-
-    const dayNames = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-
-    const todayName = dayNames[now.getDay()];
-
-    // --------------------------------------------------
-    // File IDs
-    // --------------------------------------------------
-
-    const mappingFileId = "1SlObzcakqDlfeW1sKG85X9aPfS4Eg09EgSqt4p5mAxs";
-
-    const timetableFileId = "1QozwSM-LTjRMPjXp-UJdPtSAzo2Q9nu4zf8vfP0BRME";
-
-    // --------------------------------------------------
-    // Get all classes for this teacher
-    // --------------------------------------------------
-
-    const mappingDataResponse = await fetchData(
-      mappingFileId,
-      "Class-Subject-Teacher",
-      env,
-    );
-
-    if (mappingDataResponse?.status === false) {
-      throw new Error(
-        mappingDataResponse?.message || "Unable to read Class-Subject-Teacher",
-      );
-    }
-
-    const mappingData = mappingDataResponse.data;
-
-    const classSet = new Set();
-
-    for (let i = 1; i < mappingData.length; i++) {
-      const [className, teacher] = mappingData[i];
-
-      if (
-        teacher?.toString().trim().toLowerCase() === teacherName.toLowerCase()
-      ) {
-        classSet.add(className);
-      }
-    }
-
-    if (classSet.size === 0) {
-      return "";
-    }
-
-    // --------------------------------------------------
-    // Prepare result
-    // --------------------------------------------------
-
-    const result = {};
-
-    // --------------------------------------------------
-    // Process each class
-    // --------------------------------------------------
-
-    for (const className of classSet) {
-      // ----------------------------------------------
-      // Get timetable
-      // ----------------------------------------------
-
-      const ttDataResponse = await fetchData(timetableFileId, className, env);
-
-      if (ttDataResponse?.status === false) {
-        throw new Error(ttDataResponse?.message || "Unable to read timetable");
-      }
-
-      const data = ttDataResponse.data;
-
-      if (!data || data.length === 0) {
-        continue;
-      }
-
-      const header = data[0];
-
-      const dayColIndex = header.findIndex(
-        (h) => h?.toString().trim() === todayName,
-      );
-
-      if (dayColIndex === -1) {
-        continue;
-      }
-
-      // ----------------------------------------------
-      // Find today's subjects for this teacher
-      // ----------------------------------------------
-
-      const subjectsToday = new Set();
-
-      for (let r = 1; r < data.length; r++) {
-        const cell = data[r][dayColIndex];
-
-        if (cell && cell.toString().includes("(")) {
-          const [subj, teacherInCellRaw] = cell.toString().split("(");
-
-          const teacherInCell = teacherInCellRaw?.replace(")", "").trim();
-
-          if (teacherInCell?.toLowerCase() === teacherName.toLowerCase()) {
-            subjectsToday.add(subj.trim());
-          }
-        }
-      }
-
-      if (subjectsToday.size === 0) {
-        continue;
-      }
-
-      // ----------------------------------------------
-      // Get students for this class
-      // ----------------------------------------------
-
-      const students = [];
-
-      for (let i = 1; i < studentData.length; i++) {
-        const [studentName, isActive, admNumber, studentClass] = studentData[i];
-
-        if (
-          isActive?.toString().trim().toUpperCase() !== "Y" ||
-          studentClass !== className
-        ) {
-          continue;
-        }
-
-        let student_name_str = `${admNumber}_${studentName}`;
-
-        const isOnLeave = students_on_leave.includes(student_name_str);
-
-        if (isOnLeave) {
-          student_name_str += " - L";
-        }
-
-        const ignoredSubjects = student_ignore_map[student_name_str];
-
-        const firstSubject = Array.from(subjectsToday)[0];
-
-        const shouldIgnore =
-          ignoredSubjects != null &&
-          firstSubject &&
-          ignoredSubjects.includes(firstSubject);
-
-        if (!shouldIgnore) {
-          students.push(student_name_str);
-        }
-      }
-
-      if (students.length === 0) {
-        continue;
-      }
-
-      // ----------------------------------------------
-      // Sort students by name
-      // ----------------------------------------------
-
-      students.sort((a, b) => {
-        const nameA = a.split("_")[1]?.toLowerCase() || "";
-
-        const nameB = b.split("_")[1]?.toLowerCase() || "";
-
-        return nameA.localeCompare(nameB);
-      });
-
-      // ----------------------------------------------
-      // Check today's calendar
-      // ----------------------------------------------
-
-      const calendarStatus = await checkCal(
-        now,
-        className,
-        1,
-        env,
-        mainCalendarEvents,
-      );
-
-      // ----------------------------------------------
-      // Add class to result
-      // ----------------------------------------------
-
-      if (calendarStatus === "N" && subjectsToday.size > 0) {
-        const yesterday = new Date(now.getTime() - millis_per_day);
-
-        const examYesterday = await getCurrentExam(
-          className,
-          yesterday,
-          0,
-          env,
-        );
-
-        result[className] = {
-          subjects: Array.from(subjectsToday),
-          students: students,
-          examNextDay: examYesterday === "" ? 0 : 1,
-        };
-      }
-    }
+    const row = rowData.values?.[0] || [];
 
     return {
-      loggedInAs: teacherName,
-      role: "teacher",
-      data: result,
-      cTResponse: {},
       status: true,
+      message: "Voucher found",
+      voucherId: voucherId,
+      rowNumber: rowNumber,
+      data: row,
     };
-  } catch (ex) {
-    console.error("GET_TODAY_CLASS_DETAILS_FOR_TEACHER Error:", ex);
-
-    throw ex;
+  } catch (error) {
+    return {
+      status: false,
+      message: "Error searching voucher",
+      error: error.message,
+    };
   }
+}
+
+export async function GET_ALL_USER_LIST_NEW(inputData, env) {
+  const password = String(inputData?.password ?? "")
+    .trim()
+    .toLowerCase();
+  const accessToken = await getGoogleAccessToken(env);
+  const ranges = ["'NKD Master'!A2:M", "'Other User Master'!A2:N"];
+
+  const sheetValues = await Promise.all(
+    ranges.map(async (range) => {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${USER_MASTER_SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("GET_ALL_USER_LIST_NEW Google Error:", data);
+        throw new Error(
+          data.error?.message || "Unable to read user master sheets",
+        );
+      }
+
+      return data.values || [];
+    }),
+  );
+
+  const [masterInput, otherInput] = sheetValues;
+  const response = {
+    data: [],
+    isAdminAccess: false,
+    role: "",
+    name: "",
+  };
+
+  for (const row of masterInput) {
+    if (!String(row[0] ?? "").trim()) break;
+
+    if (row[3] === "Active") {
+      const rowPassword = String(row[7] ?? "").trim().toLowerCase();
+
+      if (password && rowPassword === password) {
+        response.role = row[10] ?? "";
+        response.name = row[6] ?? "";
+
+        if (response.role === "Admin" || response.role === "Super Admin") {
+          response.isAdminAccess = true;
+        }
+      }
+
+      response.data.push({
+        name: row[6] ?? "",
+        mobile: row[9] ?? "",
+        schemeDiscount: row[12] ?? "",
+        devType: "NKDDevotee",
+      });
+    }
+  }
+
+  for (const row of otherInput) {
+    if (!String(row[1] ?? "").trim()) break;
+
+    response.data.push({
+      name: row[1] ?? "",
+      mobile: row[10] ?? "",
+      devType: "Non-NKDDevotee",
+      schemeDiscount: row[13] ?? "",
+    });
+  }
+
+  response.data.sort((a, b) =>
+    String(a.name).localeCompare(String(b.name)),
+  );
+
+  return response;
 }
