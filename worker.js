@@ -1,18 +1,9 @@
-import { DurableObject } from "cloudflare:workers";
 import {
   GOOGLE_REDIRECT_URI,
   GOOGLE_SCOPES,
   READ_SECRET,
   runAppsScriptFunction,
-  TEST_KEY,
 } from "./utils/googleConfig.js";
-import {
-  GET_ALL_USER_LIST_NEW,
-  GET_DATA,
-  SAVE_DATA,
-  DELETE_DATA,
-  SEARCH_VOUCHER,
-} from "./api/ApplicationMethod.js";
 
 async function getGoogleOAuthUrls(env, state) {
   const clientId = await READ_SECRET(env, "API_CLIENT_ID");

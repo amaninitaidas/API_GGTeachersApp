@@ -2,7 +2,7 @@ export const GOOGLE_REDIRECT_URI =
   "https://api-ggteachersapp.gaurangagurukul.workers.dev/oauth/callback";
 
 export const GOOGLE_SCOPES =
-  "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/script.send_mail https://www.googleapis.com/auth/calendar";
+  "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/script.send_mail https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/script.external_request";
 
 export const GOOGLE_SCRIPT_ID =
   "1TVxwoOwk-KPnOpV5DppYvqqgbqZrd9pm4diY5S4S4HEmmXw1YDA_rLuL";
